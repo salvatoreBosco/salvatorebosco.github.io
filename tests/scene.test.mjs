@@ -18,3 +18,15 @@ for(const [width,height,introBottom] of [[1440,720,260],[1024,700,260],[390,720,
  });
 }
 test('clamped progress, ready and intro state',()=>{assert.equal(scene(400,700,-1,220).progress,0);assert.equal(scene(400,700,4,220).progress,1);assert.equal(scene(400,700,.5,220).ready,false);assert.equal(scene(400,700,.5,220).introVisible,true);assert.equal(scene(400,700,.8,220).introVisible,false)});
+test('camera stays aligned with actual screen at every scroll position',()=>{
+ for(const [w,h,b] of [[1440,720,170],[390,720,110],[320,500,140]]){
+  const initial=scene(w,h,0,b);
+  for(let i=0;i<=100;i++){
+   const f=scene(w,h,i/100,b);
+   assert.ok(Math.abs(initial.x*f.roomScale+f.roomX-f.x)<1e-7);
+   assert.ok(Math.abs(initial.y*f.roomScale+f.roomY-f.y)<1e-7);
+   assert.ok(Math.abs(initial.width*f.roomScale-f.width)<1e-7);
+   assert.ok(Math.abs(f.width/f.height-w/h)<1e-7);
+  }
+ }
+});

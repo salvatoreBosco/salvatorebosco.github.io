@@ -1,13 +1,13 @@
 {
   "name": "salvatore-bosco-portfolio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:scene": "node --experimental-strip-types --test tests/scene.test.mjs"
+    "test:scene": "node --experimental-strip-types --test tests/scene.test.mjs tests/window.test.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
