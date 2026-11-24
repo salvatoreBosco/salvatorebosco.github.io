@@ -1,11 +1,6 @@
 import React from 'react';
-/** The screen is NOT part of this artwork. The real React desktop sits in its opening. */
-export function Studio(){return <div className="studio-room" aria-hidden="true">
- <div className="studio-wall"/><div className="studio-slats left"/><div className="studio-slats right"/>
- <div className="studio-poster"><small>DESIGN / CODE</small><svg viewBox="0 0 100 84"><g fill="none" strokeWidth="1.2"><ellipse cx="50" cy="42" rx="37" ry="14" transform="rotate(-35 50 42)" stroke="#ac91ff"/><ellipse cx="50" cy="42" rx="37" ry="14" transform="rotate(35 50 42)" stroke="#6fd4dd"/><circle cx="50" cy="42" r="7" stroke="#e3d5ff"/></g></svg><small>COMO · ITALIA</small></div>
- <div className="studio-board"><span>FIELD NOTES / 01</span><b>React</b><b>TypeScript</b><b>Laravel</b><b>React Native</b><i>BUILD · TEST · ITERATE</i></div>
- <div className="studio-desk"><div className="studio-desk-edge"/><div className="studio-mat"/><div className="studio-keyboard">{Array.from({length:56},(_,i)=><i key={i}/>)}</div><div className="studio-mouse"/><div className="studio-cup"><i/></div><div className="studio-notebook"><i/><i/><i/><b>IDEAS / 26</b></div><div className="studio-phone"/></div>
- <svg className="studio-lamp" viewBox="0 0 120 160"><defs><linearGradient id="lampMetal" x2="1" y2="1"><stop stopColor="#77717a"/><stop offset="1" stopColor="#252630"/></linearGradient></defs><ellipse cx="40" cy="151" rx="34" ry="6" fill="#0c0d13"/><path d="M39 149 L39 104 79 41" fill="none" stroke="url(#lampMetal)" strokeWidth="7" strokeLinecap="round"/><circle cx="39" cy="104" r="6" fill="#34343e"/><path d="M62 32 Q76 21 91 32 L111 59 55 59Z" fill="url(#lampMetal)"/><ellipse cx="83" cy="59" rx="28" ry="5" fill="#f3d8ab"/><path d="M55 60 L111 60 120 155 0 155Z" fill="#f3ca8420"/></svg>
- <svg className="studio-guitar" viewBox="0 0 100 225"><defs><linearGradient id="guitarFinish" x2="1" y2="1"><stop stopColor="#813a55"/><stop offset="1" stopColor="#351c2d"/></linearGradient></defs><g transform="rotate(10 50 110)"><path d="M44 128 C22 113 10 130 23 151 C-2 185 20 216 50 214 C80 216 101 184 76 151 C89 129 74 113 56 128Z" fill="url(#guitarFinish)" stroke="#9a6779" strokeWidth="1.5"/><rect x="44" y="21" width="12" height="144" rx="2" fill="#574133"/><path d="M42 26 40 4 59 3 60 24Z" fill="#302e38"/><g stroke="#b19b80" strokeWidth=".7">{Array.from({length:14},(_,i)=><path key={i} d={`M44 ${35+i*8}h12`}/>)}</g><rect x="35" y="158" width="30" height="9" rx="2" fill="#25232a"/><rect x="35" y="176" width="30" height="9" rx="2" fill="#25232a"/><rect x="39" y="191" width="22" height="4" fill="#a4a0a5"/><g stroke="#cec7b8" strokeWidth=".35">{[46,48,50,52,54].map(x=><path key={x} d={`M${x} 12V193`}/>)}</g><circle cx="70" cy="196" r="4" fill="#24202a"/></g></svg>
- <div className="studio-speaker left"><i/><b/></div><div className="studio-speaker right"><i/><b/></div>
- </div>}
+/** One photographic environment; the screen is the existing, live React desktop. */
+export function Studio(){
+ const base=import.meta.env.BASE_URL;
+ return <div className="studio-room cinematic-room" aria-hidden="true" style={{'--studio-desktop':`url("${base}studio/room-desktop.webp")`,'--studio-mobile':`url("${base}studio/room-mobile.webp")`} as React.CSSProperties}/>;
+}

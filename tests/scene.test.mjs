@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {scene} from '../src/scene.ts';
+import {scene, studioImageFrame, STUDIO_FRAME} from '../src/scene.ts';
 for(const [width,height,introBottom] of [[1440,720,260],[1024,700,260],[390,720,205],[320,500,175],[844,330,115]]){
  test(`geometry stays within viewport at ${width}×${height}`,()=>{
   let previous=scene(width,height,0,introBottom);
@@ -28,5 +28,15 @@ test('camera stays aligned with actual screen at every scroll position',()=>{
    assert.ok(Math.abs(initial.width*f.roomScale-f.width)<1e-7);
    assert.ok(Math.abs(f.width/f.height-w/h)<1e-7);
   }
+ }
+});
+
+test('photographic screen opening aligns at every tested desktop viewport',()=>{
+ for(const [w,h,b] of [[1440,720,130],[1920,950,150],[1024,700,120],[844,330,100]]){
+  const f=scene(w,h,0,b),a=STUDIO_FRAME,r=studioImageFrame(w,h,f.initialWidth,f.initialHeight,f.startY);
+  assert.ok(Math.abs(r.x+a.x*r.width/a.width-f.x)<1e-7);
+  assert.ok(Math.abs(r.y+a.y*r.height/a.height-f.y)<1e-7);
+  assert.ok(Math.abs(a.w*r.width/a.width-f.width)<1e-7);
+  assert.ok(Math.abs(a.h*r.height/a.height-f.height)<1e-7);
  }
 });
