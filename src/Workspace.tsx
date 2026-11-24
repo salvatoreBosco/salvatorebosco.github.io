@@ -1,7 +1,7 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {copy, type Lang} from './data';
 import './workspace.css';
-import {scene, clamp, studioImageFrame} from './scene';
+import {scene, clamp, studioImageFrame, pointerCamera, smoothPointer} from './scene';
 import {Studio} from './Studio';
 import {fitWindow,moveWindow,resizeWindow,type Rect} from './windowGeometry';
 
@@ -62,14 +62,58 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
   if(classic){entered.current=false;setReady(false);setIntroVisible(true);return;}
   const s=stage.current,v=sticky.current,d=screen.current;if(!s||!v||!d)return;
   let frame=0;let lastReady=false;let lastIntro:boolean|undefined;
-  const draw=()=>{frame=0;const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;s.style.setProperty('--nav-h',`${nav}px`);const width=v.clientWidth,height=v.clientHeight;if(!width||!height)return;const distance=Math.max(1,s.offsetHeight-height);const p=reduced?1:clamp((nav-s.getBoundingClientRect().top)/distance,0,1);const introBottom=(introRef.current?.offsetTop||0)+(introRef.current?.offsetHeight||0);const f=scene(width,height,p,introBottom);
+  // A separate, on-demand RAF updates only compositor-friendly camera properties.
+  // The scroll geometry remains the single source of truth for screen alignment.
+  const fine=window.matchMedia('(hover: hover) and (pointer: fine)');
+  let cameraFrame=0,lastCameraTime=0,cameraWidth=0,cameraHeight=0,cameraProgress=0;
+  let targetX=0,targetY=0,currentX=0,currentY=0;
+  const cameraEnabled=()=>!reduced&&fine.matches&&cameraWidth>700&&cameraProgress<.78;
+  const drawCamera=(time:number)=>{
+   cameraFrame=0;
+   const enabled=cameraEnabled();
+   if(!enabled){targetX=targetY=currentX=currentY=0;}
+   else{
+    const dt=lastCameraTime?Math.min(50,Math.max(0,time-lastCameraTime)):16.7;
+    currentX=smoothPointer(currentX,targetX,dt);currentY=smoothPointer(currentY,targetY,dt);
+   }
+   lastCameraTime=time;
+   const c=pointerCamera(cameraWidth,cameraHeight,cameraProgress,currentX,currentY,enabled);
+   v.style.setProperty('--camera-x',`${c.x}px`);
+   v.style.setProperty('--camera-y',`${c.y}px`);
+   v.style.setProperty('--camera-scale',String(c.scale));
+   v.style.setProperty('--foreground-x',`${c.foregroundX}px`);
+   v.style.setProperty('--foreground-y',`${c.foregroundY}px`);
+   v.style.setProperty('--sign-x',`${c.signX}px`);
+   v.style.setProperty('--sign-y',`${c.signY}px`);
+   v.style.setProperty('--camera-light-x',`${50+currentX*22}%`);
+   v.style.setProperty('--camera-light-y',`${50+currentY*16}%`);
+   v.style.setProperty('--camera-light-opacity',String(c.strength*(.055+Math.hypot(currentX,currentY)*.018)));
+   if(enabled&&(Math.abs(currentX-targetX)>.001||Math.abs(currentY-targetY)>.001))cameraFrame=requestAnimationFrame(drawCamera);
+   else lastCameraTime=0;
+  };
+  const queueCamera=()=>{if(!cameraFrame)cameraFrame=requestAnimationFrame(drawCamera)};
+  const pointerMove=(e:PointerEvent)=>{
+   if(e.pointerType!=='mouse'||!cameraEnabled())return;
+   const bounds=v.getBoundingClientRect();
+   if(!bounds.width||!bounds.height)return;
+   targetX=clamp(2*(e.clientX-bounds.left)/bounds.width-1,-1,1);
+   targetY=clamp(2*(e.clientY-bounds.top)/bounds.height-1,-1,1);
+   queueCamera();
+  };
+  const resetPointer=()=>{targetX=targetY=0;queueCamera()};
+  const motionChanged=()=>{targetX=targetY=0;queueCamera()};
+  const draw=()=>{frame=0;const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;s.style.setProperty('--nav-h',`${nav}px`);const width=v.clientWidth,height=v.clientHeight;if(!width||!height)return;const distance=Math.max(1,s.offsetHeight-height);const p=reduced?1:clamp((nav-s.getBoundingClientRect().top)/distance,0,1);const introBottom=(introRef.current?.offsetTop||0)+(introRef.current?.offsetHeight||0);const f=scene(width,height,p,introBottom);cameraWidth=width;cameraHeight=height;cameraProgress=p;queueCamera();
    v.style.setProperty('--room-transform',`translate(${f.roomX}px,${f.roomY}px) scale(${f.roomScale})`);const bg=studioImageFrame(width,height,f.initialWidth,f.initialHeight,f.startY);v.style.setProperty('--studio-bg-w',`${bg.width}px`);v.style.setProperty('--studio-bg-h',`${bg.height}px`);v.style.setProperty('--studio-bg-x',`${bg.x}px`);v.style.setProperty('--studio-bg-y',`${bg.y}px`);v.style.setProperty('--studio-phone-bottom',`${f.startY+f.initialHeight}px`);v.style.setProperty('--desk-y',`${Math.min(height-22,f.startY+f.initialHeight+23)}px`);v.style.setProperty('--monitor-width',`${f.initialWidth}px`);
    d.style.setProperty('--logical-w',`${width}px`);d.style.setProperty('--logical-h',`${height}px`);d.style.setProperty('--screen-sx',`${Math.max(1,f.width-2*f.bezel)/width}`);d.style.setProperty('--screen-sy',`${Math.max(1,f.height-2*f.bezel)/height}`);
    d.style.setProperty('--device-w',`${f.width}px`);d.style.setProperty('--device-h',`${f.height}px`);d.style.setProperty('--device-x',`${f.x}px`);d.style.setProperty('--device-y',`${f.y}px`);d.style.setProperty('--device-radius',`${f.radius}px`);d.style.setProperty('--bezel',`${f.bezel}px`);d.style.setProperty('--stand',`${f.fade}`);v.style.setProperty('--intro-opacity',`${f.fade}`);v.style.setProperty('--intro-shift',`${f.shift}px`);v.style.setProperty('--progress',`${p*100}%`);
    const now=f.ready;if(now!==lastReady||entered.current!==now){lastReady=now;entered.current=now;setReady(now);}if(f.introVisible!==lastIntro){lastIntro=f.introVisible;setIntroVisible(f.introVisible);}
 
   };
-  const queue=()=>{if(!frame)frame=requestAnimationFrame(draw)};const ro=new ResizeObserver(queue);ro.observe(v);if(introRef.current)ro.observe(introRef.current);const nav=document.querySelector('header.nav');if(nav)ro.observe(nav);window.addEventListener('scroll',queue,{passive:true});window.addEventListener('resize',queue);draw();return()=>{if(frame)cancelAnimationFrame(frame);ro.disconnect();window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);};
+  const queue=()=>{if(!frame)frame=requestAnimationFrame(draw)};const ro=new ResizeObserver(queue);ro.observe(v);if(introRef.current)ro.observe(introRef.current);const nav=document.querySelector('header.nav');if(nav)ro.observe(nav);window.addEventListener('scroll',queue,{passive:true});window.addEventListener('resize',queue);
+  v.addEventListener('pointermove',pointerMove,{passive:true});v.addEventListener('pointerleave',resetPointer);window.addEventListener('blur',resetPointer);fine.addEventListener('change',motionChanged);
+  draw();return()=>{if(frame)cancelAnimationFrame(frame);if(cameraFrame)cancelAnimationFrame(cameraFrame);ro.disconnect();window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);v.removeEventListener('pointermove',pointerMove);v.removeEventListener('pointerleave',resetPointer);window.removeEventListener('blur',resetPointer);fine.removeEventListener('change',motionChanged);
+   for(const key of ['--camera-x','--camera-y','--camera-scale','--foreground-x','--foreground-y','--sign-x','--sign-y','--camera-light-x','--camera-light-y','--camera-light-opacity'])v.style.removeProperty(key);
+  };
  },[classic,reduced]);
  useLayoutEffect(()=>{if(!classic&&ready&&focusApp.current&&body.current){body.current.scrollTop=0;body.current.focus({preventScroll:true});focusApp.current=false}},[active,classic,ready]);
  useEffect(()=>{if(ready&&focusApp.current){focusApp.current=false;body.current?.focus({preventScroll:true})}},[ready,active]);
@@ -81,9 +125,10 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
  const content:Partial<Record<AppId,React.ReactNode>>={about:kids[0],work:kids[1],experience:kids[2],terminal:extra[0],music:<div className="os-music">{extra.slice(1)}</div>,contact:kids[4],cv:cvContent};
  const windowLabels={close:lang==='it'?'Chiudi':'Close',min:lang==='it'?'Minimizza':'Minimize',max:lang==='it'?'Massimizza / ripristina':'Maximize / restore'};
  return <div className={`workspace-stage ${classic?'ws-classic':''} ${reduced?'ws-reduced':''}`} ref={stage}><div className="ws-sticky" ref={sticky}>
-  {classic?intro:<><Studio/><div className="studio-sign">{intro}</div></>}
   {!classic&&<div className="cinematic-actions" aria-hidden={!introVisible} inert={!introVisible}>{introControls}</div>}
   {!classic&&<div className="ws-progress" aria-hidden="true"><span>{w.scroll} ↓</span><i/></div>}
+  <div className="ws-camera">
+  {classic?intro:<><Studio/><div className="studio-sign">{intro}</div></>}
   <div className="ws-device" ref={screen} data-ready={ready||classic}>
    {classic?<div className="ws-interface"><div className="ws-body" ref={body} tabIndex={-1}>{kids.map((child,i)=><div className="ws-panel" key={ids[i]}>{child}</div>)}<div id="cv" className="ws-panel">{cvContent}</div></div></div>:
    <div className="ws-interface os-screen" inert={!ready} aria-hidden={!ready}>
@@ -99,6 +144,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
     </div>
     <nav className="os-dock" aria-label={w.desk}>{VALID.map(id=><button key={id} className={`ws-app-${id==='terminal'||id==='music'?'extra':id}`} aria-current={active===id?'page':undefined} onClick={()=>select(id,true,true)} title={names[id]}><span className="ws-app-icon"><Glyph id={id}/></span><span className="os-dock-label">{names[id]}</span><i className={windows.some(a=>a.id===id)?'running':''}/></button>)}</nav>
    </div>}
+  </div>
   </div>
  </div></div>;
 }
