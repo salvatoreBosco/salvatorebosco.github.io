@@ -16,25 +16,62 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout production
+        uses: actions/checkout@v4
+        with:
+          path: production
+
+      - name: Checkout preview
+        uses: actions/checkout@v4
+        with:
+          ref: feature/immersive-workspace
+          path: candidate
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
-      - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Build production
+        working-directory: production
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Test and build preview
+        working-directory: candidate
+        run: |
+          npm install --no-audit --no-fund
+          npm run test:scene
+          npm run build -- --base=/preview/
+
+      - name: Assemble production and preview
+        run: |
+          mkdir -p publish/preview
+          cp -a production/dist/. publish/
+          cp -a candidate/dist/. publish/preview/
+          sed -i 's|</head>|<meta name="robots" content="noindex, nofollow"></head>|' publish/preview/index.html
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: publish
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Deploy
         id: deployment
