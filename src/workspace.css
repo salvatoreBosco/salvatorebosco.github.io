@@ -70,3 +70,22 @@ html[data-theme=light] .os-wallpaper{background:radial-gradient(ellipse at 48% 3
 }
 .ws-sticky[data-studio3d=true] .ws-device .os-screen{left:0;top:0;transform:none;border-radius:0}
 .ws-sticky[data-studio3d=true] .ws-device[data-ready=true]{transform:none;will-change:auto}
+
+/* V1.4.1: the document is an intro timeline, not a scrollable desktop.
+   Keep the global header and dock within the actual viewport when entered.
+   Window/dialog scrolling remains independent; unlock before returning to intro. */
+.container:has(>.workspace-stage:not(.ws-classic)){padding-bottom:0}
+.container:has(>.workspace-stage:not(.ws-classic))>footer{display:none}
+html.sb-os-locked{overflow:hidden;overscroll-behavior:none;scroll-behavior:auto}
+html.sb-os-locked body{overscroll-behavior:none}
+html.sb-os-locked header.nav{position:fixed;inset:0 0 auto 0}
+html.sb-os-locked .container{padding-top:var(--os-locked-nav-h,65px)}
+html.sb-os-locked .workspace-stage:not(.ws-classic) .ws-sticky{
+ position:fixed;top:var(--os-locked-nav-h,65px);left:0;right:0;bottom:0;
+ width:100%;height:calc(100vh - var(--os-locked-nav-h,65px));
+ height:calc(100dvh - var(--os-locked-nav-h,65px));min-height:0;overflow:hidden;overscroll-behavior:none;
+}
+html.sb-os-locked .os-window-body,
+html.sb-os-locked .terminal-output,
+html.sb-os-locked dialog{overscroll-behavior:contain}
+html.sb-os-locked .os-dock{flex-shrink:0}

@@ -42,3 +42,8 @@ export function smoothPointer(current:number,target:number,dt:number){
  if(Math.abs(current-target)<.001)return target;
  return current+(target-current)*(1-Math.exp(-Math.max(0,dt)/85));
 }
+
+/** Scroll owns the intro only. After entry, the explicit exit action releases the latch. */
+export function workspaceProgress(entered:boolean,reduced:boolean,nav:number,stageTop:number,stageHeight:number,viewportHeight:number){
+ return entered||reduced?1:clamp((nav-stageTop)/Math.max(1,stageHeight-viewportHeight),0,1);
+}

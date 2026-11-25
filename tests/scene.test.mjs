@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {scene, studioImageFrame, STUDIO_FRAME, pointerCamera, smoothPointer} from '../src/scene.ts';
+import {scene, studioImageFrame, STUDIO_FRAME, pointerCamera, smoothPointer, workspaceProgress} from '../src/scene.ts';
 for(const [width,height,introBottom] of [[1440,720,260],[1024,700,260],[390,720,205],[320,500,175],[844,330,115]]){
  test(`geometry stays within viewport at ${width}×${height}`,()=>{
   let previous=scene(width,height,0,introBottom);
@@ -84,4 +84,17 @@ test('pointer smoothing converges without overshoot and returns to neutral',()=>
  for(let i=0;i<100;i++){const next=smoothPointer(x,0,16.7);assert.ok(next<=x&&next>=0);x=next}
  assert.equal(x,0);
  assert.ok(Math.abs(smoothPointer(smoothPointer(0,1,20),1,20)-smoothPointer(0,1,40))<1e-12);
+});
+
+test('workspace stays fullscreen after entering regardless of scroll or resize',()=>{
+ for(const top of [65,0,-100,-500,-1500,-3000]){
+  for(const height of [330,720,1080])assert.equal(workspaceProgress(true,false,65,top,1800,height),1);
+ }
+});
+test('explicit release restores the reversible intro timeline',()=>{
+ assert.equal(workspaceProgress(false,false,65,65,1800,720),0);
+ assert.equal(workspaceProgress(false,false,65,-475,1800,720),.5);
+ assert.equal(workspaceProgress(false,false,65,-1015,1800,720),1);
+ assert.equal(workspaceProgress(false,false,65,-475,1800,720),.5);
+ assert.equal(workspaceProgress(false,true,65,65,1800,720),1);
 });

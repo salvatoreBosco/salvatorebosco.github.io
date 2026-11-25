@@ -1,7 +1,7 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {copy, type Lang} from './data';
 import './workspace.css';
-import {scene, clamp, studioImageFrame, smoothPointer} from './scene';
+import {scene, clamp, studioImageFrame, smoothPointer, workspaceProgress} from './scene';
 import type {StudioRenderer} from './studio3d';
 import {Studio} from './Studio';
 import {fitWindow,moveWindow,resizeWindow,type Rect} from './windowGeometry';
@@ -54,13 +54,14 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
  function startGesture(e:React.PointerEvent<HTMLElement>,win:WindowState,mode:'move'|'resize'){if(mobile||win.maximized||!desktop.current||e.button!==0)return;const box=desktop.current.getBoundingClientRect();gesture.current={id:win.id,mode,x:e.clientX,y:e.clientY,rect:win.rect,w:box.width,h:box.height};e.currentTarget.setPointerCapture(e.pointerId);e.preventDefault()}
  function updateGesture(e:React.PointerEvent<HTMLElement>){const g=gesture.current;if(!g)return;const dx=(e.clientX-g.x)/g.w,dy=(e.clientY-g.y)/g.h;const rect=g.mode==='move'?moveWindow(g.rect,dx,dy):resizeWindow(g.rect,dx,dy);setWindows(old=>old.map(a=>a.id===g.id?{...a,rect}:a))}
  function endGesture(){gesture.current=null}
+ function releaseWorkspace(){entered.current=false;document.documentElement.classList.remove('sb-os-locked');document.documentElement.style.removeProperty('--os-locked-nav-h');}
  function jump(end:boolean){const s=stage.current, v=sticky.current;if(!s||!v)return;const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;const top=s.getBoundingClientRect().top+window.scrollY-nav;window.scrollTo({top:Math.max(0,top+(end?Math.max(0,s.offsetHeight-v.offsetHeight):0)),behavior:'instant'});}
- function select(id:AppId,updateHash=true,focus=false){activeRef.current=id;setActive(id);if(!classic&&id!=='home')raise(id);else if(!classic&&!mobile)setWindows(old=>old.map(a=>({...a,minimized:true})));focusApp.current=focus;if(updateHash&&location.hash!==`#${id}`)window.history.replaceState(null,'',`#${id}`);if(classic){requestAnimationFrame(()=>document.getElementById(id==='home'?'main':id==='terminal'||id==='music'?'extra':id)?.scrollIntoView({block:'start',behavior:'instant'}));}else if(!entered.current||(stage.current&&sticky.current&&stage.current.getBoundingClientRect().bottom<sticky.current.getBoundingClientRect().height+(document.querySelector('header.nav')?.getBoundingClientRect().height||0)-2)){jump(true)}else if(body.current){body.current.scrollTop=0;if(focus)requestAnimationFrame(()=>body.current?.focus({preventScroll:true}));}}
- function back(){focusApp.current=false;window.history.replaceState(null,'','#main');activeRef.current=mobile?'home':'terminal';setActive(activeRef.current);setWindows(mobile?[]:[initialWindow('terminal')]);jump(false);requestAnimationFrame(()=>document.getElementById('intro-title')?.focus({preventScroll:true}));}
- function changeMode(){const next=!classic;setClassic(next);window.history.replaceState(null,'','#main');activeRef.current=mobile?'home':'terminal';setActive(activeRef.current);setWindows(mobile?[]:[initialWindow('terminal')]);requestAnimationFrame(()=>{if(next){window.scrollTo({top:0,behavior:'instant'});}else{jump(false);}});}
+ function select(id:AppId,updateHash=true,focus=false){activeRef.current=id;setActive(id);if(!classic&&id!=='home')raise(id);else if(!classic&&!mobile)setWindows(old=>old.map(a=>({...a,minimized:true})));focusApp.current=focus;if(updateHash&&location.hash!==`#${id}`)window.history.replaceState(null,'',`#${id}`);if(classic){requestAnimationFrame(()=>document.getElementById(id==='home'?'main':id==='terminal'||id==='music'?'extra':id)?.scrollIntoView({block:'start',behavior:'instant'}));}else if(!entered.current){jump(true)}else if(body.current){body.current.scrollTop=0;if(focus)requestAnimationFrame(()=>body.current?.focus({preventScroll:true}));}}
+ function back(){releaseWorkspace();focusApp.current=false;window.history.replaceState(null,'','#main');activeRef.current=mobile?'home':'terminal';setActive(activeRef.current);setWindows(mobile?[]:[initialWindow('terminal')]);jump(false);requestAnimationFrame(()=>document.getElementById('intro-title')?.focus({preventScroll:true}));}
+ function changeMode(){releaseWorkspace();const next=!classic;setClassic(next);window.history.replaceState(null,'','#main');activeRef.current=mobile?'home':'terminal';setActive(activeRef.current);setWindows(mobile?[]:[initialWindow('terminal')]);requestAnimationFrame(()=>{if(next){window.scrollTo({top:0,behavior:'instant'});}else{jump(false);}});}
  useEffect(()=>{const m=window.matchMedia('(prefers-reduced-motion: reduce)');const cb=()=>{setReduced(m.matches);if(m.matches)setClassic(true)};m.addEventListener('change',cb);return()=>m.removeEventListener('change',cb)},[]);
  useLayoutEffect(()=>{
-  if(classic){entered.current=false;setReady(false);setIntroVisible(true);return;}
+  if(classic){releaseWorkspace();setReady(false);setIntroVisible(true);return;}
   const s=stage.current,v=sticky.current,d=screen.current;if(!s||!v||!d)return;
   const host=v.querySelector<HTMLElement>('.studio-3d-host');
   const fine=window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -75,7 +76,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
    const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;
    s.style.setProperty('--nav-h',`${nav}px`);
    const width=v.clientWidth,height=v.clientHeight;if(!width||!height)return;
-   const p=reduced?1:clamp((nav-s.getBoundingClientRect().top)/Math.max(1,s.offsetHeight-height),0,1);
+   const p=workspaceProgress(entered.current,reduced,nav,s.getBoundingClientRect().top,s.offsetHeight,height);
    const introBottom=(introRef.current?.offsetTop||0)+(introRef.current?.offsetHeight||0);
    const f=scene(width,height,p,introBottom);
    v.style.setProperty('--room-transform',`translate(${f.roomX}px,${f.roomY}px) scale(${f.roomScale})`);
@@ -85,6 +86,11 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
    d.style.setProperty('--screen-sx',String(Math.max(1,f.width-2*f.bezel)/width));
    d.style.setProperty('--screen-sy',String(Math.max(1,f.height-2*f.bezel)/height));
    v.style.setProperty('--intro-opacity',String(f.fade));v.style.setProperty('--intro-shift',`${f.shift}px`);v.style.setProperty('--progress',`${p*100}%`);
+   if(f.ready){
+    const root=document.documentElement;
+    root.style.setProperty('--os-locked-nav-h',`${nav}px`);
+    if(!root.classList.contains('sb-os-locked')){root.classList.add('sb-os-locked');queue();}
+   }
    if(f.ready!==lastReady||entered.current!==f.ready){lastReady=f.ready;entered.current=f.ready;setReady(f.ready);}
    if(f.introVisible!==lastIntro){lastIntro=f.introVisible;setIntroVisible(f.introVisible);}
    if(engine){
@@ -115,7 +121,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
   return()=>{disposed=true;if(frame)cancelAnimationFrame(frame);engine?.dispose();ro.disconnect();
    window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);window.removeEventListener('blur',reset);
    v.removeEventListener('pointermove',move);v.removeEventListener('pointerleave',reset);fine.removeEventListener('change',reset);document.removeEventListener('visibilitychange',queue);
-   delete v.dataset.studio3d;v.style.removeProperty('--screen-projection');
+   delete v.dataset.studio3d;v.style.removeProperty('--screen-projection');releaseWorkspace();
   };
  },[classic,reduced]);
  useLayoutEffect(()=>{if(!classic&&ready&&focusApp.current&&body.current){body.current.scrollTop=0;body.current.focus({preventScroll:true});focusApp.current=false}},[active,classic,ready]);
