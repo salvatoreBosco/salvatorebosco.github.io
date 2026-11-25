@@ -89,3 +89,28 @@ html.sb-os-locked .os-window-body,
 html.sb-os-locked .terminal-output,
 html.sb-os-locked dialog{overscroll-behavior:contain}
 html.sb-os-locked .os-dock{flex-shrink:0}
+
+/* V1.5 — independent 3D Journey application in SB.OS. */
+.os-window-body.os-journey-body{overflow:hidden;container-type:normal;background:#131521;min-height:0}
+.journey-app{height:100%;min-height:0;display:flex;flex-direction:column;background:#131521;color:#e9e8f5;font-size:12px}
+.journey-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;border-bottom:1px solid #34354b;background:#1e2030;flex-shrink:0}
+.journey-toolbar>div:first-child{display:grid;gap:2px}.journey-toolbar span{font:9px var(--mono);letter-spacing:.12em;color:#b5a0ff}.journey-toolbar strong{font-size:15px}
+.journey-mode{display:flex;gap:3px;padding:3px;border:1px solid #44465a;border-radius:9px;background:#151723}
+.journey-app button{border:1px solid #53516c;border-radius:7px;background:#27293d;color:#f1edf9;padding:7px 10px;font-size:11px;font-weight:550;touch-action:manipulation}
+.journey-app button:hover,.journey-app button[aria-pressed=true],.journey-app button[aria-current=step]{border-color:#b5a0ff;background:#40365b}
+.journey-game{position:relative;flex:1;min-height:0;overflow:hidden;outline:none;background:#151826;isolation:isolate}
+.journey-game:focus-visible{outline:2px solid #b5a0ff;outline-offset:-2px}
+.journey-canvas{position:absolute;inset:0;touch-action:none}.journey-canvas canvas{display:block;width:100%;height:100%}
+.journey-hud{position:absolute;top:10px;left:12px;display:grid;gap:3px;pointer-events:none;text-shadow:0 2px 6px #000}
+.journey-hud span:first-child{font:9px var(--mono);letter-spacing:.15em;color:#c3b4ff}.journey-hud span:last-child{font-weight:650}
+.journey-reset{position:absolute;top:9px;right:10px}.journey-controls{position:absolute;bottom:10px;left:12px;display:grid;grid-template-columns:repeat(3,34px);grid-template-rows:repeat(2,34px);gap:3px}
+.journey-controls button{padding:0;touch-action:none;font-size:16px;background:#171a2bc9;backdrop-filter:blur(6px);user-select:none}.journey-controls button:first-child{grid-column:2}.journey-controls button:nth-child(2){grid-column:1;grid-row:2}
+.journey-interact{position:absolute;bottom:12px;right:12px;max-width:calc(100% - 140px);text-align:right}.journey-interact span{font:10px var(--mono);text-shadow:0 2px 4px #000;color:#e4deef}.journey-interact button{background:#b5a0ff;color:#151020}
+.journey-stations{flex-shrink:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px;background:#1b1d2a;border-top:1px solid #3e3e53}
+.journey-stations button{display:grid;gap:2px;text-align:left;min-width:0;padding:6px 7px}.journey-stations span{font:9px var(--mono);color:#b5a0ff}.journey-stations strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.journey-stations small{font-size:9px;color:#bdbcd1}
+.journey-detail{position:absolute;inset:0;z-index:5;margin:auto;width:min(94%,450px);height:max-content;max-height:96%;overflow:auto;overscroll-behavior:contain;padding:20px;display:grid;gap:9px;background:#1a1c2cf5;border:1px solid #8073ad;border-radius:14px;box-shadow:0 18px 65px #000b}
+.journey-detail>span{font:11px var(--mono);color:#c5b4ff}.journey-detail h3{font-size:clamp(18px,2vw,26px)}.journey-detail p{color:#cccce0;line-height:1.6}.journey-detail button{justify-self:start;margin-top:5px}
+.journey-message{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:#d9d1ee}
+.journey-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:15px;color:var(--text);background:var(--bg)}
+.journey-list .experience-grid{grid-template-columns:1fr}
+@media(max-width:700px){.journey-toolbar{padding:7px 9px}.journey-toolbar strong{font-size:13px}.journey-stations{grid-template-columns:repeat(2,minmax(0,1fr))}.journey-controls{grid-template-columns:repeat(3,39px);grid-template-rows:repeat(2,39px)}.journey-interact{max-width:calc(100% - 150px)}}

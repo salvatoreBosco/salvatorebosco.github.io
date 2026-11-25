@@ -4,6 +4,7 @@ import './workspace.css';
 import {scene, clamp, studioImageFrame, smoothPointer, workspaceProgress} from './scene';
 import type {StudioRenderer} from './studio3d';
 import {Studio} from './Studio';
+import {ExperienceApp} from './ExperienceApp';
 import {fitWindow,moveWindow,resizeWindow,type Rect} from './windowGeometry';
 
 type AppId = 'home'|'about'|'work'|'experience'|'cv'|'terminal'|'music'|'contact';
@@ -147,7 +148,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
      <div className="os-icons">{APPS.map(id=><button className={`os-icon ws-app-${id==='terminal'||id==='music'?'extra':id}`} key={id} onClick={()=>select(id,true,true)}><span className="ws-app-icon"><Glyph id={id}/></span><strong>{names[id]}</strong></button>)}</div>
      {windows.map((win,i)=>{const visible=!win.minimized&&(!mobile||active===win.id);const r=win.maximized?{x:0,y:0,w:1,h:1}:win.rect;return <section key={win.id} className={`os-window ${active===win.id?'is-front':''}`} hidden={!visible} aria-label={names[win.id]} style={{left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.w*100}%`,height:`${r.h*100}%`,zIndex:10+i}} onPointerDown={()=>{if(active!==win.id)raise(win.id)}}>
       <header className="os-window-title" onPointerDown={e=>startGesture(e,win,'move')} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={endGesture} onDoubleClick={()=>toggleMax(win.id)}><div className="os-controls" onPointerDown={e=>e.stopPropagation()} onDoubleClick={e=>e.stopPropagation()}><button className="os-close" title={windowLabels.close} aria-label={windowLabels.close} onClick={()=>closeWindow(win.id)}>×</button><button className="os-min" title={windowLabels.min} aria-label={windowLabels.min} onClick={()=>closeWindow(win.id,true)}>−</button><button className="os-max" title={windowLabels.max} aria-label={windowLabels.max} onClick={()=>toggleMax(win.id)}>+</button></div><span><Glyph id={win.id}/>{names[win.id]}</span><small>SB.OS</small></header>
-      <div className={`os-window-body ${win.id==='terminal'?'os-terminal-body':''}`} tabIndex={0} ref={active===win.id?body:undefined}><div className="ws-panel">{content[win.id]}</div></div>
+      <div className={`os-window-body ${win.id==='terminal'?'os-terminal-body':win.id==='experience'?'os-journey-body':''}`} tabIndex={0} ref={active===win.id?body:undefined}>{win.id==='experience'?<ExperienceApp lang={lang} active={ready&&visible&&active===win.id} classicContent={kids[2]}/>:<div className="ws-panel">{content[win.id]}</div>}</div>
       {!win.maximized&&<div className="os-resize" aria-hidden="true" onPointerDown={e=>startGesture(e,win,'resize')} onPointerMove={updateGesture} onPointerUp={endGesture} onPointerCancel={endGesture}/>}
      </section>})}
     </div>
