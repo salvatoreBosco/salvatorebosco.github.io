@@ -25,7 +25,7 @@ export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boo
   if(mode!=='3d'||!host.current)return;let disposed=false;let e:JourneyEngine|undefined;setStatus('loading');setNear(-1);nearRef.current=-1;setSelected(null);
   import('./journey3d').then(mod=>{
    if(disposed||!host.current)return;
-   try{e=mod.createJourney(host.current,idx=>{nearRef.current=idx;setNear(idx)},()=>{if(!disposed){setStatus('error');e?.setActive(false)}});engine.current=e;setStatus('ready');e.setActive(activeRef.current&&visibleRef.current)}
+   try{e=mod.createJourney(host.current,stations,(idx:number)=>{nearRef.current=idx;setNear(idx)},()=>{if(!disposed){setStatus('error');e?.setActive(false)}});engine.current=e;setStatus('ready');e.setActive(activeRef.current&&visibleRef.current)}
    catch{if(!disposed)setStatus('error')}
   }).catch(()=>{if(!disposed)setStatus('error')});
   return()=>{disposed=true;e?.dispose();if(engine.current===e)engine.current=undefined;keys.current.clear()};
