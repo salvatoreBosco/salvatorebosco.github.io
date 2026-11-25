@@ -67,7 +67,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
   const fine=window.matchMedia('(hover: hover) and (pointer: fine)');
   let cameraFrame=0,lastCameraTime=0,cameraWidth=0,cameraHeight=0,cameraProgress=0;
   let targetX=0,targetY=0,currentX=0,currentY=0;
-  const cameraEnabled=()=>!reduced&&fine.matches&&cameraWidth>700&&cameraProgress<.78;
+  const cameraEnabled=()=>!reduced&&fine.matches&&cameraWidth>700&&cameraProgress<.88;
   const drawCamera=(time:number)=>{
    cameraFrame=0;
    const enabled=cameraEnabled();
@@ -81,13 +81,17 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
    v.style.setProperty('--camera-x',`${c.x}px`);
    v.style.setProperty('--camera-y',`${c.y}px`);
    v.style.setProperty('--camera-scale',String(c.scale));
+   v.style.setProperty('--camera-tilt-x',`${c.tiltX}deg`);
+   v.style.setProperty('--camera-tilt-y',`${c.tiltY}deg`);
+   v.style.setProperty('--camera-perspective',`${c.perspective}px`);
+   v.style.setProperty('--camera-strength',String(c.strength));
    v.style.setProperty('--foreground-x',`${c.foregroundX}px`);
    v.style.setProperty('--foreground-y',`${c.foregroundY}px`);
    v.style.setProperty('--sign-x',`${c.signX}px`);
    v.style.setProperty('--sign-y',`${c.signY}px`);
-   v.style.setProperty('--camera-light-x',`${50+currentX*22}%`);
-   v.style.setProperty('--camera-light-y',`${50+currentY*16}%`);
-   v.style.setProperty('--camera-light-opacity',String(c.strength*(.055+Math.hypot(currentX,currentY)*.018)));
+   v.style.setProperty('--camera-light-x',`${50+currentX*37}%`);
+   v.style.setProperty('--camera-light-y',`${50+currentY*32}%`);
+   v.style.setProperty('--camera-light-opacity',String(c.strength*(.09+Math.hypot(currentX,currentY)*.075)));
    if(enabled&&(Math.abs(currentX-targetX)>.001||Math.abs(currentY-targetY)>.001))cameraFrame=requestAnimationFrame(drawCamera);
    else lastCameraTime=0;
   };
@@ -112,7 +116,7 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
   const queue=()=>{if(!frame)frame=requestAnimationFrame(draw)};const ro=new ResizeObserver(queue);ro.observe(v);if(introRef.current)ro.observe(introRef.current);const nav=document.querySelector('header.nav');if(nav)ro.observe(nav);window.addEventListener('scroll',queue,{passive:true});window.addEventListener('resize',queue);
   v.addEventListener('pointermove',pointerMove,{passive:true});v.addEventListener('pointerleave',resetPointer);window.addEventListener('blur',resetPointer);fine.addEventListener('change',motionChanged);
   draw();return()=>{if(frame)cancelAnimationFrame(frame);if(cameraFrame)cancelAnimationFrame(cameraFrame);ro.disconnect();window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);v.removeEventListener('pointermove',pointerMove);v.removeEventListener('pointerleave',resetPointer);window.removeEventListener('blur',resetPointer);fine.removeEventListener('change',motionChanged);
-   for(const key of ['--camera-x','--camera-y','--camera-scale','--foreground-x','--foreground-y','--sign-x','--sign-y','--camera-light-x','--camera-light-y','--camera-light-opacity'])v.style.removeProperty(key);
+   for(const key of ['--camera-x','--camera-y','--camera-scale','--camera-tilt-x','--camera-tilt-y','--camera-perspective','--camera-strength','--foreground-x','--foreground-y','--sign-x','--sign-y','--camera-light-x','--camera-light-y','--camera-light-opacity'])v.style.removeProperty(key);
   };
  },[classic,reduced]);
  useLayoutEffect(()=>{if(!classic&&ready&&focusApp.current&&body.current){body.current.scrollTop=0;body.current.focus({preventScroll:true});focusApp.current=false}},[active,classic,ready]);

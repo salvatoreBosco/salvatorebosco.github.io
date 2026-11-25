@@ -41,20 +41,42 @@ test('photographic screen opening aligns at every tested desktop viewport',()=>{
  }
 });
 
-test('pointer camera overscan covers viewport and disables before workspace interaction',()=>{
- for(const [w,h] of [[1440,720],[1920,1080],[1024,600],[844,330]]){
-  for(const p of [0,.1,.3,.5,.7,.78,1])for(const nx of [-2,-1,0,1,2])for(const ny of [-1,0,1]){
+function coversViewport(w,h,c){
+ const a=c.tiltX*Math.PI/180,b=c.tiltY*Math.PI/180;
+ const corners=[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]];
+ // CSS transform order: scale, rotateY, rotateX, translate, perspective.
+ const polygon=corners.map(([x,y])=>{
+  x*=c.scale;y*=c.scale;
+  const z=-x*Math.sin(b);x*=Math.cos(b);
+  const y2=y*Math.cos(a)-z*Math.sin(a),z2=y*Math.sin(a)+z*Math.cos(a);
+  const d=c.perspective/(c.perspective-z2);
+  return [(x+c.x)*d,(y2+c.y)*d];
+ });
+ return corners.every(([x,y])=>polygon.every(([px,py],i)=>{
+  const [qx,qy]=polygon[(i+1)%4];
+  return (qx-px)*(y-py)-(qy-py)*(x-px)>=-1e-7;
+ }));
+}
+test('perspective camera covers viewport and reaches identity before workspace interaction',()=>{
+ for(const [w,h] of [[701,1600],[844,330],[1024,600],[1440,720],[1920,1080],[3440,1440],[768,1024]]){
+  for(const p of [0,.1,.2,.4,.6,.8,.88,1])for(const nx of [-2,-1,-.5,0,.5,1,2])for(const ny of [-1,-.5,0,.5,1]){
    const c=pointerCamera(w,h,p,nx,ny,true);
-   assert.ok(Math.abs(c.x)<=(c.scale-1)*w/2+1e-9);
-   assert.ok(Math.abs(c.y)<=(c.scale-1)*h/2+1e-9);
+   assert.ok(coversViewport(w,h,c),`${w}x${h} p=${p} cursor=${nx},${ny}`);
    assert.ok(c.strength>=0&&c.strength<=1);
-   if(p>=.78)assert.ok(c.scale===1&&c.x===0&&c.y===0&&c.foregroundX===0&&c.foregroundY===0&&c.signX===0&&c.signY===0);
+   if(p>=.88)assert.ok(c.scale===1&&c.x===0&&c.y===0&&c.tiltX===0&&c.tiltY===0&&c.foregroundX===0&&c.signX===0);
   }
  }
  for(const [w,enabled] of [[390,true],[1440,false]]){
   const c=pointerCamera(w,720,0,1,1,enabled);
-  assert.equal(c.scale,1);assert.equal(c.strength,0);assert.ok(c.x===0&&c.y===0&&c.foregroundX===0&&c.signX===0);
+  assert.equal(c.scale,1);assert.equal(c.strength,0);assert.ok(c.x===0&&c.y===0&&c.tiltX===0&&c.tiltY===0);
  }
+});
+test('opposite pointer positions produce opposing orbital angles and bounded foreground motion',()=>{
+ const left=pointerCamera(1440,720,0,-1,-1,true),right=pointerCamera(1440,720,0,1,1,true);
+ assert.equal(left.x,-right.x);assert.equal(left.y,-right.y);
+ assert.equal(left.tiltX,-right.tiltX);assert.equal(left.tiltY,-right.tiltY);
+ assert.ok(Math.abs(right.tiltY)>=6&&Math.abs(right.foregroundX)>=20);
+ assert.ok(pointerCamera(1440,720,.7,1,1,true).strength<right.strength);
 });
 test('pointer smoothing converges without overshoot and returns to neutral',()=>{
  let x=0;for(let i=0;i<100;i++){const next=smoothPointer(x,1,16.7);assert.ok(next>=x&&next<=1);x=next}

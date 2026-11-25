@@ -69,3 +69,33 @@ html[data-theme=light] .os-wallpaper{background:radial-gradient(ellipse at 48% 3
  .workspace-stage:not(.ws-classic) .ws-camera{transform:none}
  .workspace-stage:not(.ws-classic) .ws-camera .studio-sign{translate:none}
 }
+
+/* V1.3.2: perspective orbit. A single projected plane retains the calibrated
+   monitor opening; restrained differential layers suggest foreground depth. */
+@media(min-width:701px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .workspace-stage:not(.ws-classic) .ws-camera{
+  transform:perspective(var(--camera-perspective,1800px)) translate3d(var(--camera-x,0px),var(--camera-y,0px),0) rotateX(var(--camera-tilt-x,0deg)) rotateY(var(--camera-tilt-y,0deg)) scale(var(--camera-scale,1));
+  transform-origin:50% 50%;
+ }
+ /* Soft crossfade avoids doubling the hard edge of the monitor or its stand.
+    The independent near-field layer is restricted to the lower desk surface. */
+ .cinematic-room:before{
+  mask-image:linear-gradient(to bottom,transparent calc(var(--studio-phone-bottom,65%) + 9%),#000 calc(var(--studio-phone-bottom,65%) + 26%));
+  transform:translate3d(var(--foreground-x,0px),var(--foreground-y,0px),0) scale(1.025);
+  transform-origin:50% 100%;
+  opacity:var(--camera-strength,0);
+ }
+ .cinematic-room:after{
+  background:radial-gradient(ellipse at 50% 55%,#a477ff16,transparent 55%),linear-gradient(90deg,#120d1280,transparent 8%,transparent 92%,#120d1280);
+ }
+ .workspace-stage:not(.ws-classic) .ws-camera:after{
+  background:radial-gradient(ellipse at var(--camera-light-x,50%) var(--camera-light-y,50%),#ffe4bc66 0%,#c4a5ff33 25%,transparent 61%);
+ }
+ .studio-sign .ws-intro h1{
+  animation:studio-sign-breathe 7s ease-in-out infinite alternate;
+ }
+ @keyframes studio-sign-breathe{
+  0%{text-shadow:0 1px 0 #fff4da,0 3px 2px #221217,0 0 8px #ffcb9c65,0 0 22px #ffa85f45,0 0 36px #d18c5550}
+  100%{text-shadow:0 1px 0 #fff4da,0 3px 2px #221217,0 0 10px #ffcb9caa,0 0 30px #ffa85f85,0 0 53px #d18c5590}
+ }
+}

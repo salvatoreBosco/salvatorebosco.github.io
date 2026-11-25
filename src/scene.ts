@@ -25,10 +25,18 @@ export function scene(width:number,height:number,progress:number,introBottom:num
  * Near the live workspace the pointer transform becomes exactly identity.
  */
 export function pointerCamera(width:number,height:number,progress:number,nx:number,ny:number,enabled:boolean){
- const strength=enabled&&width>700?1-ease(clamp((progress-.08)/.70,0,1)):0;
- const x=clamp(nx,-1,1)*Math.min(18,width*.014)*strength;
- const y=clamp(ny,-1,1)*Math.min(12,height*.014)*strength;
- return {strength,x,y,scale:1+.036*strength,foregroundX:clamp(nx,-1,1)*5*strength,foregroundY:clamp(ny,-1,1)*3*strength,signX:-clamp(nx,-1,1)*3*strength,signY:-clamp(ny,-1,1)*2*strength};
+ const strength=enabled&&width>700?1-ease(clamp((progress-.12)/.76,0,1)):0;
+ const u=clamp(nx,-1,1),v=clamp(ny,-1,1),amplitude=Math.max(Math.abs(u),Math.abs(v));
+ return {
+  strength,
+  x:-u*Math.min(62,width*.045)*strength,
+  y:-v*Math.min(36,height*.045)*strength,
+  scale:1+(.02+.20*amplitude)*strength,
+  tiltX:v*5*strength,tiltY:-u*7*strength,
+  perspective:Math.max(1200,width*1.5,height*1.8),
+  foregroundX:-u*22*strength,foregroundY:-v*13*strength,
+  signX:u*12*strength,signY:v*7*strength
+ };
 }
 export function smoothPointer(current:number,target:number,dt:number){
  if(Math.abs(current-target)<.001)return target;
