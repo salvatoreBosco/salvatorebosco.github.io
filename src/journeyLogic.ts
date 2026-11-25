@@ -27,3 +27,21 @@ export function nearestCheckpoint(p:Position,radius=2.2){
 export function approachPoint(i:number):Position{
  const c=checkpoints[i];return {x:c.x*.52,z:c.z+.65};
 }
+
+export const roomSpawn:Position={x:0,z:3.5};
+export const roomPoints:Position[]=[{x:-2.65,z:-.9},{x:2.65,z:-.9},{x:0,z:-3.15}];
+export function roomCanStand(p:Position){
+ return Math.abs(p.x)<=4.25&&p.z>=-4.2&&p.z<=4.4&&
+ !roomPoints.some(c=>Math.abs(p.x-c.x)<1.12&&Math.abs(p.z-(c.z-.85))<.67);
+}
+export function moveRoomPlayer(p:Position,dx:number,dz:number,dt:number):Position{
+ const len=Math.hypot(dx,dz);if(!len)return {...p};
+ const step=Math.max(0,Math.min(.1,dt))*3.6;
+ const next={...p},x=Math.max(-4.25,Math.min(4.25,p.x+dx/len*step)),z=Math.max(-4.2,Math.min(4.4,p.z+dz/len*step));
+ if(roomCanStand({x,z:p.z}))next.x=x;
+ if(roomCanStand({x:next.x,z}))next.z=z;
+ return next;
+}
+export function nearestRoomPoint(p:Position,radius=1.65){
+ let found=-1,best=radius;roomPoints.forEach((c,i)=>{const d=Math.hypot(c.x-p.x,c.z-p.z);if(d<best){best=d;found=i}});return found;
+}

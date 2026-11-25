@@ -1,11 +1,13 @@
 import * as T from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {checkpoints,spawn,movePlayer,nearestCheckpoint,routeTo,type Position} from './journeyLogic';
-type Station={title:string;date:string;organization:string};
+import {checkpoints,spawn,movePlayer,nearestCheckpoint,routeTo,approachPoint,roomSpawn,roomPoints,moveRoomPlayer,nearestRoomPoint,type Position} from './journeyLogic';
+type Station={title:string;date:string;organization:string; exhibits:{title:string;text:string}[]};
 export interface JourneyEngine{
  setActive(active:boolean):void;
  setDirection(x:number,z:number):void;
  go(index:number):void;
+ enterRoom(index:number):void;
+ leaveRoom():void;
  reset():void;
  dispose():void;
 }
@@ -87,6 +89,70 @@ export function createJourney(host:HTMLElement,stations:Station[],onNear:(index:
   }
   const portal=new T.Mesh(new T.TorusGeometry(.31,.027,10,42),accent);portal.rotation.x=-Math.PI/2;portal.position.set(-Math.sign(c.x)*1.24,.16,.65);group.add(portal);
  });
+ // Keep the original corridor as a separate scene group; rooms are full environments.
+ const hall=new T.Group();for(const child of [...world.children])hall.add(child);world.add(hall);
+ const rooms:T.Group[]=[];
+ function infoBoard(parent:T.Object3D,title:string,body:string,color:string,x:number,y:number,z:number){
+  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=640;const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas unavailable');
+  ctx.fillStyle='#151925';ctx.fillRect(0,0,1024,640);ctx.fillStyle=color;ctx.fillRect(0,0,1024,13);
+  ctx.font='700 65px system-ui';ctx.fillText(title,48,102,928);
+  ctx.font='400 43px system-ui';ctx.fillStyle='#eeeaf9';
+  let line='',yy=184;for(const word of body.split(/\s+/)){const next=line?line+' '+word:word;if(ctx.measureText(next).width>920&&line){ctx.fillText(line,48,yy);yy+=58;line=word}else line=next}if(line)ctx.fillText(line,48,yy,928);
+  const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;textures.add(tex);
+  const m=new T.MeshBasicMaterial({map:tex,toneMapped:false});materials.add(m);
+  box(parent,2.28,1.44,.12,x,y,z-.07,dark,.04);
+  const panel=new T.Mesh(new T.PlaneGeometry(2.2,1.36),m);panel.position.set(x,y,z);parent.add(panel);
+ }
+ function table(parent:T.Object3D,x:number,z:number){
+  box(parent,1.95,.12,.85,x,.89,z,wood,.04);
+  for(const dx of [-.82,.82])box(parent,.10,.82,.65,x+dx,.44,z,trim,.015);
+ }
+ function monitor(parent:T.Object3D,x:number,z:number,accent:T.Material){
+  box(parent,.88,.57,.08,x,1.34,z,black,.025);box(parent,.78,.46,.015,x,1.34,z+.05,accent);
+  for(let k=0;k<4;k++)box(parent,.52-k*.06,.018,.006,x-.025,1.48-k*.08,z+.063,white);
+  box(parent,.08,.18,.10,x,.99,z,trim);box(parent,.48,.03,.21,x,.96,z+.33,black);
+ }
+ checkpoints.forEach((_,i)=>{
+  const g=new T.Group();g.visible=false;world.add(g);rooms.push(g);
+  const color='#'+colors[i].toString(16).padStart(6,'0');
+  const accent=mat(colors[i],.5,.05,colors[i],.33);
+  const wallMat=mat([0x514238,0x344559,0x3a4c4a,0x453852][i],.92);
+  box(g,10,.22,10.2,0,-.12,0,floor);
+  box(g,10,4.2,.24,0,2,-5,wallMat);
+  for(const side of [-1,1]){
+   box(g,.23,4.2,10,side*5,2,0,wallMat);
+   box(g,.055,.075,9.7,side*4.83,.12,0,accent);
+  }
+  box(g,9.7,.06,.06,0,3.85,-4.82,accent);
+  // Front of each room is open for the following camera; architectural door frame.
+  for(const x of [-4.85,4.85])box(g,.18,4.15,.25,x,2,4.85,trim);
+  box(g,9.8,.19,.25,0,4.12,4.85,trim);
+  label(g,[stations[i].date,stations[i].title,stations[i].organization],color,0,3.15,-4.84,4.7,1.52);
+  box(g,3.4,.025,4.5,0,.014,1.05,mat([0x493b35,0x304057,0x304744,0x39324e][i],.95),.01);
+  roomPoints.forEach((p,j)=>{
+   const z=p.z-.85;
+   table(g,p.x,z);
+   infoBoard(g,stations[i].exhibits[j].title,stations[i].exhibits[j].text,color,p.x,2.03,z-.48);
+   const ring=new T.Mesh(new T.TorusGeometry(.38,.022,10,40),accent);ring.rotation.x=-Math.PI/2;ring.position.set(p.x,.035,p.z+.23);g.add(ring);
+   if(i===0){
+    // Lab equipment, circuit boards and components.
+    if(j===0){box(g,.62,.065,.42,p.x,.98,z,mat(0x276d50),.008);for(let k=0;k<5;k++)box(g,.065,.065,.08,p.x-.24+k*.12,1.05,z,trim)}
+    if(j===1){box(g,.65,.36,.36,p.x,1.12,z,black,.025);box(g,.48,.23,.016,p.x,1.14,z+.19,accent);for(let k=0;k<3;k++)sphere(g,.047,p.x-.17+k*.17,1.01,z+.21,white)}
+    if(j===2){for(let k=0;k<5;k++)box(g,.11,.10,.11,p.x-.34+k*.17,1,z,accent,.01);box(g,.76,.04,.44,p.x,.97,z,black)}
+   }else if(i===1){
+    for(let k=0;k<3+j;k++)box(g,.55,.065,.38,p.x-.37,.98+k*.069,z,mat([0x876b58,0x526d99,0x6c577d][k%3]),.01);
+    if(j!==0)monitor(g,p.x+.44,z,accent);else box(g,.65,.025,.43,p.x+.42,.97,z,white);
+   }else{
+    if(i===3&&j===0){monitor(g,p.x-.43,z,accent);monitor(g,p.x+.43,z,accent)}else monitor(g,p.x,z,accent);
+    if(j===1){for(let k=0;k<3;k++)box(g,.13,.18,.06,p.x+.65,1.06+k*.19,z,trim,.015)}
+   }
+  });
+  // Side shelving adds depth without obstructing the central walking area.
+  for(const side of [-1,1]){
+   box(g,.40,2.0,2.1,side*4.72,1.0,2.0,dark,.03);
+   for(let k=0;k<3;k++)box(g,.42,.06,2.1,side*4.68,.45+k*.58,2.0,wood);
+  }
+ });
  const player=new T.Group();world.add(player);
  const jacket=mat(0x54426d,.68),skin=mat(0xd4a184,.78),hair=mat(0x27222b,.9),pants=mat(0x292c3a,.82);
  box(player,.49,.56,.29,0,.91,0,jacket,.10);
@@ -107,7 +173,7 @@ export function createJourney(host:HTMLElement,stations:Station[],onNear:(index:
  const sun=new T.DirectionalLight(0xe3e6ff,2.25);sun.position.set(5,9,9);world.add(sun);
  const fill=new T.DirectionalLight(0xa88fef,.6);fill.position.set(-5,3,-8);world.add(fill);
  renderer.shadowMap.enabled=false; // use local contact shadow; avoids expensive moving shadow maps in small windows.
- let pos:Position={...spawn},direction={x:0,z:0},destination:Position[]=[],active=false,disposed=false,raf=0,last=0,near=-2,phase=0,yaw=Math.PI;
+ let room=-1;let pos:Position={...spawn},direction={x:0,z:0},destination:Position[]=[],active=false,disposed=false,raf=0,last=0,near=-2,phase=0,yaw=Math.PI;
  const follow=new T.Vector3(0,4.4,11.2),look=new T.Vector3(0,1,-.8);
  function resize(){const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
  const ro=new ResizeObserver(resize);ro.observe(host);resize();
@@ -117,22 +183,29 @@ export function createJourney(host:HTMLElement,stations:Station[],onNear:(index:
   while(destination.length&&Math.hypot(destination[0].x-pos.x,destination[0].z-pos.z)<.16)destination.shift();
   if(destination.length){x=destination[0].x-pos.x;z=destination[0].z-pos.z}
   const moving=Math.hypot(x,z)>.01;
-  if(moving){pos=movePlayer(pos,x,z,dt);const angle=Math.atan2(x,z);const diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));yaw+=diff*Math.min(1,dt*12);phase+=dt*10;}
+  if(moving){pos=room<0?movePlayer(pos,x,z,dt):moveRoomPlayer(pos,x,z,dt);const angle=Math.atan2(x,z);const diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));yaw+=diff*Math.min(1,dt*12);phase+=dt*10;}
   player.position.set(pos.x,0,pos.z);player.rotation.y=yaw;
   limbs.forEach((l,i)=>{const swing=moving?Math.sin(phase)*(i===0||i===3?1:-1)*.56:0;l.rotation.x=T.MathUtils.lerp(l.rotation.x,swing,Math.min(1,dt*15))});
   player.position.y=moving?Math.abs(Math.sin(phase))*.025:0;
   shadow.position.x=pos.x;shadow.position.z=pos.z;
-  const cameraTarget=new T.Vector3(pos.x*.52,4.4,pos.z+5.5);
+  const cameraTarget=new T.Vector3(pos.x*.52,room<0?4.4:3.6,pos.z+(room<0?5.5:4.6));
   follow.lerp(cameraTarget,1-Math.exp(-dt*5));
   look.lerp(new T.Vector3(pos.x*.67,1.0,pos.z-1.5),1-Math.exp(-dt*7));
   camera.position.copy(follow);camera.lookAt(look);
-  const n=nearestCheckpoint(pos);if(n!==near){near=n;onNear(n)}
+  const n=room<0?nearestCheckpoint(pos):nearestRoomPoint(pos);if(n!==near){near=n;onNear(n)}
   renderer.render(world,camera);raf=requestAnimationFrame(render);
  }
  function setActive(value:boolean){active=value;if(!value){direction={x:0,z:0};destination=[];if(raf)cancelAnimationFrame(raf);raf=0;last=0}else if(!raf){resize();raf=requestAnimationFrame(render)}}
  function setDirection(x:number,z:number){direction={x,z};if(x||z)destination=[]}
- function go(index:number){if(index>=0&&index<checkpoints.length){direction={x:0,z:0};destination=routeTo(pos,index)}}
- function reset(){pos={...spawn};destination=[];direction={x:0,z:0};yaw=Math.PI;follow.set(0,4.4,11.2);look.set(0,1,4.5)}
+ function go(index:number){if(room<0&&index>=0&&index<checkpoints.length){direction={x:0,z:0};destination=routeTo(pos,index)}}
+ function switchRoom(index:number,p:Position){
+  room=index;hall.visible=index<0;rooms.forEach((g,i)=>g.visible=i===index);
+  pos={...p};destination=[];direction={x:0,z:0};yaw=Math.PI;near=-2;onNear(-1);
+  follow.set(pos.x*.52,index<0?4.4:3.6,pos.z+(index<0?5.5:4.6));look.set(pos.x*.67,1,pos.z-1.5);
+ }
+ function enterRoom(index:number){if(index>=0&&index<rooms.length)switchRoom(index,roomSpawn)}
+ function leaveRoom(){const previous=room;if(previous>=0)switchRoom(-1,approachPoint(previous))}
+ function reset(){switchRoom(-1,spawn)}
  function dispose(){disposed=true;setActive(false);ro.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);world.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose()});materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer.dispose();renderer.domElement.remove()}
- return {setActive,setDirection,go,reset,dispose};
+ return {setActive,setDirection,go,enterRoom,leaveRoom,reset,dispose};
 }

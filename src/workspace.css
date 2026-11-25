@@ -114,3 +114,9 @@ html.sb-os-locked .os-dock{flex-shrink:0}
 .journey-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:15px;color:var(--text);background:var(--bg)}
 .journey-list .experience-grid{grid-template-columns:1fr}
 @media(max-width:700px){.journey-toolbar{padding:7px 9px}.journey-toolbar strong{font-size:13px}.journey-stations{grid-template-columns:repeat(2,minmax(0,1fr))}.journey-controls{grid-template-columns:repeat(3,39px);grid-template-rows:repeat(2,39px)}.journey-interact{max-width:calc(100% - 150px)}}
+
+/* Journey rooms: preserve the 3D view when reading an exhibit. */
+.journey-room-info{position:absolute;right:12px;top:48px;width:min(300px,47%);max-height:calc(100% - 110px);overflow:auto;z-index:5;padding:12px 14px;display:grid;gap:7px;background:#1a1c2cf5;border:1px solid #8073ad;border-radius:10px;box-shadow:0 8px 32px #0008;overscroll-behavior:contain}
+.journey-room-info>span{color:#c5b4ff;font:10px var(--mono)}.journey-room-info h3{font-size:16px}.journey-room-info p{color:#e0dcee;line-height:1.5}.journey-room-info button{justify-self:start}
+.journey-room-caption{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0;padding:7px 12px;background:#1b1d2a;color:#cbc8df;font:10px var(--mono)}
+@media(max-width:700px){.journey-room-info{width:calc(100% - 24px);max-height:calc(100% - 150px)}}
