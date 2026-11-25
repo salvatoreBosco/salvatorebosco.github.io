@@ -51,7 +51,7 @@ export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boo
  const list=mode==='list'||status==='error';
  return <section className="journey-app" aria-label={it?'Percorso 3D':'3D journey'}>
   <header className="journey-toolbar"><div><span>SB.OS / JOURNEY</span><strong>{it?'Il mio percorso':'My journey'}</strong></div><div className="journey-mode"><button aria-pressed={mode==='3d'} onClick={()=>{if(status==='error'&&mode==='3d'){setMode('list');return}setMode('3d')}}>3D</button><button aria-pressed={mode==='list'} onClick={()=>setMode('list')}>{it?'Timeline':'Timeline'}</button></div></header>
-  {mode==='3d'&&<div ref={game} tabIndex={0} className="journey-game" onKeyDown={keyDown} onKeyUp={keyUp} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))stop()}} aria-label={it?'Area di gioco. WASD o frecce per muoversi, E per interagire.':'Game area. WASD or arrows to move, E to interact.'}>
+  {mode==='3d'&&<div ref={game} tabIndex={0} className="journey-game" onKeyDown={keyDown} onKeyUp={keyUp} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))stop()}} aria-label={it?'Area di gioco. WASD o frecce per muoversi, E per interagire.':'Game area. WASD or arrows to move, E to interact.'}>
    <div className="journey-canvas" ref={host} onPointerDown={()=>game.current?.focus({preventScroll:true})}/>
    {status==='loading'&&<div className="journey-message" role="status">{it?'Caricamento del mondo 3D…':'Loading the 3D world…'}</div>}
    {status==='error'&&<div className="journey-message" role="status">{it?'WebGL non disponibile. Usa la timeline.':'WebGL unavailable. Use the timeline.'}</div>}

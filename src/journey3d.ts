@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {checkpoints,spawn,movePlayer,nearestCheckpoint,approachPoint,type Position} from './journeyLogic';
+import {checkpoints,spawn,movePlayer,nearestCheckpoint,routeTo,type Position} from './journeyLogic';
 type Station={title:string;date:string;organization:string};
 export interface JourneyEngine{
  setActive(active:boolean):void;
@@ -107,14 +107,15 @@ export function createJourney(host:HTMLElement,stations:Station[],onNear:(index:
  const sun=new T.DirectionalLight(0xe3e6ff,2.25);sun.position.set(5,9,9);world.add(sun);
  const fill=new T.DirectionalLight(0xa88fef,.6);fill.position.set(-5,3,-8);world.add(fill);
  renderer.shadowMap.enabled=false; // use local contact shadow; avoids expensive moving shadow maps in small windows.
- let pos:Position={...spawn},direction={x:0,z:0},destination:Position|null=null,active=false,disposed=false,raf=0,last=0,near=-2,phase=0,yaw=Math.PI;
+ let pos:Position={...spawn},direction={x:0,z:0},destination:Position[]=[],active=false,disposed=false,raf=0,last=0,near=-2,phase=0,yaw=Math.PI;
  const follow=new T.Vector3(0,4.4,11.2),look=new T.Vector3(0,1,-.8);
  function resize(){const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
  const ro=new ResizeObserver(resize);ro.observe(host);resize();
  function render(time:number){
   raf=0;if(!active||disposed)return;const dt=last?Math.min(.05,(time-last)/1000):1/60;last=time;
   let {x,z}=direction;
-  if(destination){x=destination.x-pos.x;z=destination.z-pos.z;if(Math.hypot(x,z)<.16){destination=null;x=z=0}}
+  while(destination.length&&Math.hypot(destination[0].x-pos.x,destination[0].z-pos.z)<.16)destination.shift();
+  if(destination.length){x=destination[0].x-pos.x;z=destination[0].z-pos.z}
   const moving=Math.hypot(x,z)>.01;
   if(moving){pos=movePlayer(pos,x,z,dt);const angle=Math.atan2(x,z);const diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));yaw+=diff*Math.min(1,dt*12);phase+=dt*10;}
   player.position.set(pos.x,0,pos.z);player.rotation.y=yaw;
@@ -128,10 +129,10 @@ export function createJourney(host:HTMLElement,stations:Station[],onNear:(index:
   const n=nearestCheckpoint(pos);if(n!==near){near=n;onNear(n)}
   renderer.render(world,camera);raf=requestAnimationFrame(render);
  }
- function setActive(value:boolean){active=value;if(!value){direction={x:0,z:0};destination=null;if(raf)cancelAnimationFrame(raf);raf=0;last=0}else if(!raf){resize();raf=requestAnimationFrame(render)}}
- function setDirection(x:number,z:number){direction={x,z};if(x||z)destination=null}
- function go(index:number){if(index>=0&&index<checkpoints.length){direction={x:0,z:0};destination=approachPoint(index)}}
- function reset(){pos={...spawn};destination=null;direction={x:0,z:0};yaw=Math.PI;follow.set(0,4.4,11.2);look.set(0,1,4.5)}
+ function setActive(value:boolean){active=value;if(!value){direction={x:0,z:0};destination=[];if(raf)cancelAnimationFrame(raf);raf=0;last=0}else if(!raf){resize();raf=requestAnimationFrame(render)}}
+ function setDirection(x:number,z:number){direction={x,z};if(x||z)destination=[]}
+ function go(index:number){if(index>=0&&index<checkpoints.length){direction={x:0,z:0};destination=routeTo(pos,index)}}
+ function reset(){pos={...spawn};destination=[];direction={x:0,z:0};yaw=Math.PI;follow.set(0,4.4,11.2);look.set(0,1,4.5)}
  function dispose(){disposed=true;setActive(false);ro.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);world.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose()});materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());renderer.dispose();renderer.domElement.remove()}
  return {setActive,setDirection,go,reset,dispose};
 }
