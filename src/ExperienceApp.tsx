@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {copy,type Lang} from './data';
 import type {JourneyEngine} from './journey3d';
 import {checkpoints} from './journeyLogic';
+import {localExhibits} from './journeyContent';
 
 export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boolean;classicContent:React.ReactNode}){
  const it=lang==='it',t=copy[lang];
@@ -11,14 +12,10 @@ export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boo
   {date:'09.2022 – 08.2023',title:it?'Tirocinio':'Internship',organization:'TEA WEB SAS · Como',detail:t.intern},
   {date:'09.2023 – '+t.current,title:'Full-stack Developer',organization:'TEA WEB SAS · Como',detail:t.experienceText}
  ];
- const exhibits=[
-  [{title:it?'Diploma':'Diploma',text:t.diploma},{title:it?'Periodo':'Period',text:'2014 – 2019'},{title:it?'Istituto':'School',text:'ITIS Magistri Cumacini'}],
-  [{title:it?'Percorso di studi':'Degree programme',text:t.degree},{title:it?'Università':'University',text:'Politecnico di Milano'},{title:it?'Periodo':'Period',text:'2020 – '+t.current}],
-  [{title:it?'Ruolo':'Role',text:t.intern},{title:it?'Azienda':'Company',text:'TEA WEB SAS · Como'},{title:it?'Periodo':'Period',text:'09.2022 – 08.2023'}],
-  [{title:it?'Sviluppo':'Development',text:it?'Funzionalità end-to-end, interfacce responsive, integrazioni REST API.':'End-to-end features, responsive interfaces, REST API integrations.'},{title:it?'Qualità e rilascio':'Quality & delivery',text:it?'Refactoring, test e deploy.':'Refactoring, testing and deployments.'},{title:it?'Collaborazione':'Collaboration',text:it?'Collaborazione diretta con clienti e designer. TEA WEB SAS · Como.':'Direct collaboration with clients and designers. TEA WEB SAS · Como.'}]
- ];
+ const exhibits=localExhibits(lang);
  const roomNames=it?['Laboratorio di elettronica','Aula studio','Primo ufficio','Studio di sviluppo']:['Electronics lab','Study room','First office','Development studio'];
  const [room,setRoom]=useState(-1);
+ const [discovered,setDiscovered]=useState<Record<number,number[]>>({});
  const [mode,setMode]=useState<'3d'|'list'>(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches?'list':'3d');
  const [status,setStatus]=useState<'loading'|'ready'|'error'>('loading');
  const [near,setNear]=useState(-1),[selected,setSelected]=useState<number|null>(null);
@@ -47,7 +44,7 @@ export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boo
  },[]);
  function enter(i:number){if(i<0||status!=='ready')return;stop();setSelected(null);setNear(-1);nearRef.current=-1;engine.current?.enterRoom(i);setRoom(i);game.current?.focus({preventScroll:true})}
  function leave(){stop();setSelected(null);setNear(-1);nearRef.current=-1;engine.current?.leaveRoom();setRoom(-1);game.current?.focus({preventScroll:true})}
- function interact(){if(nearRef.current<0)return;if(room<0)enter(nearRef.current);else{stop();setSelected(nearRef.current)}}
+ function interact(){if(nearRef.current<0)return;if(room<0)enter(nearRef.current);else{stop();const index=nearRef.current;setSelected(index);setDiscovered(prev=>({...prev,[room]:Array.from(new Set([...(prev[room]||[]),index]))}))}}
  const allowed=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
  function keyDown(e:React.KeyboardEvent<HTMLDivElement>){
   if(!active||mode!=='3d'||status!=='ready'||e.altKey||e.ctrlKey||e.metaKey)return;
@@ -70,10 +67,10 @@ export function ExperienceApp({lang,active,classicContent}:{lang:Lang;active:boo
     <div className="journey-controls" aria-label={it?'Controlli movimento':'Movement controls'}>{[[0,-1,'↑'],[-1,0,'←'],[0,1,'↓'],[1,0,'→']].map(([x,z,label])=><button key={label} aria-label={String(label)} onPointerDown={e=>touch(e,Number(x),Number(z))} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>{label}</button>)}</div>
     <div className="journey-interact">{near>=0?<button onClick={interact}>E · {room>=0?(it?'Leggi informazioni':'Read information'):(it?'Scopri esperienza':'Explore experience')}</button>:<span>{room>=0?(it?'Esplora la stanza e avvicinati alle postazioni':'Explore the room and approach the exhibits'):(it?'WASD / frecce · avvicinati a una tappa':'WASD / arrows · approach a station')}</span>}</div>
    </>}
-   {room>=0&&selected!==null&&!list&&<aside className="journey-room-info"><span>{stations[room].date}</span><h3>{exhibits[room][selected].title}</h3><p>{exhibits[room][selected].text}</p><button autoFocus onClick={()=>{setSelected(null);requestAnimationFrame(()=>game.current?.focus({preventScroll:true}))}}>{it?'Chiudi scheda':'Close card'}</button></aside>}
+   {room>=0&&selected!==null&&!list&&<aside className="journey-room-info"><span>{stations[room].date}</span><h3>{exhibits[room][selected].title}</h3><p className="journey-summary">{exhibits[room][selected].text}</p>{exhibits[room][selected].sections.map(s=><section key={s.heading} className="journey-info-section"><h4>{s.heading}</h4><p>{s.body}</p></section>)}<div className="journey-info-tags">{exhibits[room][selected].tags.map(tag=><span key={tag}>{tag}</span>)}</div>{exhibits[room][selected].projects.length>0&&<section className="journey-info-section"><h4>{it?'Progetti collegati':'Related projects'}</h4>{exhibits[room][selected].projects.map(p=><article key={p.title} className="journey-case"><strong>{p.title}</strong><p>{p.summary}</p><p>{p.contribution}</p><small>{p.tech.join(' · ')}</small></article>)}</section>}<button autoFocus onClick={()=>{setSelected(null);requestAnimationFrame(()=>game.current?.focus({preventScroll:true}))}}>{it?'Chiudi scheda':'Close card'}</button></aside>}
   </div>}
-  {!list&&room<0&&<nav className="journey-stations" aria-label={it?'Tappe del percorso':'Journey stations'}>{checkpoints.map((c,i)=><button key={c.id} aria-current={near===i?'step':undefined} onClick={()=>visit(i)}><span>0{i+1}</span><strong>{stations[i].title}</strong><small>{stations[i].date}</small></button>)}</nav>}
-  {!list&&room>=0&&<div className="journey-room-caption"><span>{stations[room].date} · {stations[room].organization}</span><span>{it?'3 postazioni da esplorare':'3 exhibits to explore'}</span></div>}
+  {!list&&room<0&&<nav className="journey-stations" aria-label={it?'Tappe del percorso':'Journey stations'}>{checkpoints.map((c,i)=><button key={c.id} aria-current={near===i?'step':undefined} onClick={()=>visit(i)}><span>0{i+1} · {(discovered[i]||[]).length}/3</span><strong>{stations[i].title}</strong><small>{stations[i].date}</small></button>)}</nav>}
+  {!list&&room>=0&&<div className="journey-room-caption"><span>{stations[room].date} · {stations[room].organization}</span><span>{(discovered[room]||[]).length}/3 · {it?'postazioni scoperte':'exhibits discovered'}</span></div>}
   {list&&<div className="journey-list">{classicContent}</div>}
  </section>;
 }

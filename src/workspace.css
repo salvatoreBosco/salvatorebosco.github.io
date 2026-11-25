@@ -120,3 +120,16 @@ html.sb-os-locked .os-dock{flex-shrink:0}
 .journey-room-info>span{color:#c5b4ff;font:10px var(--mono)}.journey-room-info h3{font-size:16px}.journey-room-info p{color:#e0dcee;line-height:1.5}.journey-room-info button{justify-self:start}
 .journey-room-caption{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;flex-shrink:0;padding:7px 12px;background:#1b1d2a;color:#cbc8df;font:10px var(--mono)}
 @media(max-width:700px){.journey-room-info{width:calc(100% - 24px);max-height:calc(100% - 150px)}}
+
+/* V1.5.2 — richer bilingual exhibits; concise boards in 3D, detailed dossier on demand. */
+.journey-room-info{width:min(400px,48%);padding:14px 17px;gap:11px}
+.journey-room-info h3{font-size:19px;line-height:1.2}
+.journey-room-info .journey-summary{color:#c5b4ff;font-weight:600}
+.journey-info-section{display:grid;gap:5px;border-top:1px solid #49445d;padding-top:10px}
+.journey-info-section h4{font-size:12px;margin:0;color:#f2ecff}
+.journey-info-section p{font-size:12px;color:#d4cfe3;line-height:1.65}
+.journey-info-tags{display:flex;flex-wrap:wrap;gap:4px}
+.journey-info-tags span{font:10px var(--mono);padding:3px 6px;border:1px solid #5c5277;border-radius:5px;color:#d4c7f5;background:#322c45}
+.journey-case{padding:9px;background:#242438;border:1px solid #454058;border-radius:7px;display:grid;gap:5px}
+.journey-case strong{font-size:12px}.journey-case small{font:10px var(--mono);color:#b5a0ff}
+@media(max-width:700px){.journey-room-info{width:calc(100% - 24px)}}
