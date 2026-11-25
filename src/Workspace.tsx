@@ -1,7 +1,8 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {copy, type Lang} from './data';
 import './workspace.css';
-import {scene, clamp, studioImageFrame, pointerCamera, smoothPointer} from './scene';
+import {scene, clamp, studioImageFrame, smoothPointer} from './scene';
+import type {StudioRenderer} from './studio3d';
 import {Studio} from './Studio';
 import {fitWindow,moveWindow,resizeWindow,type Rect} from './windowGeometry';
 
@@ -61,62 +62,60 @@ export function Workspace({lang,cv,children}:{lang:Lang;cv:string;children:React
  useLayoutEffect(()=>{
   if(classic){entered.current=false;setReady(false);setIntroVisible(true);return;}
   const s=stage.current,v=sticky.current,d=screen.current;if(!s||!v||!d)return;
-  let frame=0;let lastReady=false;let lastIntro:boolean|undefined;
-  // A separate, on-demand RAF updates only compositor-friendly camera properties.
-  // The scroll geometry remains the single source of truth for screen alignment.
+  const host=v.querySelector<HTMLElement>('.studio-3d-host');
   const fine=window.matchMedia('(hover: hover) and (pointer: fine)');
-  let cameraFrame=0,lastCameraTime=0,cameraWidth=0,cameraHeight=0,cameraProgress=0;
-  let targetX=0,targetY=0,currentX=0,currentY=0;
-  const cameraEnabled=()=>!reduced&&fine.matches&&cameraWidth>700&&cameraProgress<.88;
-  const drawCamera=(time:number)=>{
-   cameraFrame=0;
-   const enabled=cameraEnabled();
-   if(!enabled){targetX=targetY=currentX=currentY=0;}
-   else{
-    const dt=lastCameraTime?Math.min(50,Math.max(0,time-lastCameraTime)):16.7;
+  let engine:StudioRenderer|undefined,disposed=false,failed=false,frame=0,lastTime=0;
+  let targetX=0,targetY=0,currentX=0,currentY=0,lastReady=false,lastIntro:boolean|undefined;
+  function fallback(){
+   failed=true;delete v!.dataset.studio3d;v!.style.removeProperty('--screen-projection');
+   engine?.dispose();engine=undefined;
+  }
+  const draw=(time:number)=>{
+   frame=0;if(disposed)return;
+   const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;
+   s.style.setProperty('--nav-h',`${nav}px`);
+   const width=v.clientWidth,height=v.clientHeight;if(!width||!height)return;
+   const p=reduced?1:clamp((nav-s.getBoundingClientRect().top)/Math.max(1,s.offsetHeight-height),0,1);
+   const introBottom=(introRef.current?.offsetTop||0)+(introRef.current?.offsetHeight||0);
+   const f=scene(width,height,p,introBottom);
+   v.style.setProperty('--room-transform',`translate(${f.roomX}px,${f.roomY}px) scale(${f.roomScale})`);
+   const bg=studioImageFrame(width,height,f.initialWidth,f.initialHeight,f.startY);
+   for(const [key,value] of Object.entries({'--studio-bg-w':bg.width,'--studio-bg-h':bg.height,'--studio-bg-x':bg.x,'--studio-bg-y':bg.y,'--studio-phone-bottom':f.startY+f.initialHeight}))v.style.setProperty(key,`${value}px`);
+   for(const [key,value] of Object.entries({'--logical-w':width,'--logical-h':height,'--device-w':f.width,'--device-h':f.height,'--device-x':f.x,'--device-y':f.y,'--device-radius':f.radius,'--bezel':f.bezel}))d.style.setProperty(key,`${value}px`);
+   d.style.setProperty('--screen-sx',String(Math.max(1,f.width-2*f.bezel)/width));
+   d.style.setProperty('--screen-sy',String(Math.max(1,f.height-2*f.bezel)/height));
+   v.style.setProperty('--intro-opacity',String(f.fade));v.style.setProperty('--intro-shift',`${f.shift}px`);v.style.setProperty('--progress',`${p*100}%`);
+   if(f.ready!==lastReady||entered.current!==f.ready){lastReady=f.ready;entered.current=f.ready;setReady(f.ready);}
+   if(f.introVisible!==lastIntro){lastIntro=f.introVisible;setIntroVisible(f.introVisible);}
+   if(engine){
+    const dt=lastTime?Math.min(50,Math.max(0,time-lastTime)):16.7;lastTime=time;
+    if(!fine.matches||reduced||f.ready){targetX=targetY=0;}
     currentX=smoothPointer(currentX,targetX,dt);currentY=smoothPointer(currentY,targetY,dt);
+    try{
+     const motion=!reduced&&fine.matches;
+     const matrix=engine.render(width,height,f,motion?currentX:0,motion?currentY:0,time);
+     v.style.setProperty('--screen-projection',matrix);v.dataset.studio3d='true';
+    }catch{fallback();}
    }
-   lastCameraTime=time;
-   const c=pointerCamera(cameraWidth,cameraHeight,cameraProgress,currentX,currentY,enabled);
-   v.style.setProperty('--camera-x',`${c.x}px`);
-   v.style.setProperty('--camera-y',`${c.y}px`);
-   v.style.setProperty('--camera-scale',String(c.scale));
-   v.style.setProperty('--camera-tilt-x',`${c.tiltX}deg`);
-   v.style.setProperty('--camera-tilt-y',`${c.tiltY}deg`);
-   v.style.setProperty('--camera-perspective',`${c.perspective}px`);
-   v.style.setProperty('--camera-strength',String(c.strength));
-   v.style.setProperty('--foreground-x',`${c.foregroundX}px`);
-   v.style.setProperty('--foreground-y',`${c.foregroundY}px`);
-   v.style.setProperty('--sign-x',`${c.signX}px`);
-   v.style.setProperty('--sign-y',`${c.signY}px`);
-   v.style.setProperty('--camera-light-x',`${50+currentX*37}%`);
-   v.style.setProperty('--camera-light-y',`${50+currentY*32}%`);
-   v.style.setProperty('--camera-light-opacity',String(c.strength*(.09+Math.hypot(currentX,currentY)*.075)));
-   if(enabled&&(Math.abs(currentX-targetX)>.001||Math.abs(currentY-targetY)>.001))cameraFrame=requestAnimationFrame(drawCamera);
-   else lastCameraTime=0;
+   if(engine&&!f.ready&&!document.hidden&&fine.matches&&!reduced)queue();
   };
-  const queueCamera=()=>{if(!cameraFrame)cameraFrame=requestAnimationFrame(drawCamera)};
-  const pointerMove=(e:PointerEvent)=>{
-   if(e.pointerType!=='mouse'||!cameraEnabled())return;
-   const bounds=v.getBoundingClientRect();
-   if(!bounds.width||!bounds.height)return;
-   targetX=clamp(2*(e.clientX-bounds.left)/bounds.width-1,-1,1);
-   targetY=clamp(2*(e.clientY-bounds.top)/bounds.height-1,-1,1);
-   queueCamera();
-  };
-  const resetPointer=()=>{targetX=targetY=0;queueCamera()};
-  const motionChanged=()=>{targetX=targetY=0;queueCamera()};
-  const draw=()=>{frame=0;const nav=document.querySelector('header.nav')?.getBoundingClientRect().height||0;s.style.setProperty('--nav-h',`${nav}px`);const width=v.clientWidth,height=v.clientHeight;if(!width||!height)return;const distance=Math.max(1,s.offsetHeight-height);const p=reduced?1:clamp((nav-s.getBoundingClientRect().top)/distance,0,1);const introBottom=(introRef.current?.offsetTop||0)+(introRef.current?.offsetHeight||0);const f=scene(width,height,p,introBottom);cameraWidth=width;cameraHeight=height;cameraProgress=p;queueCamera();
-   v.style.setProperty('--room-transform',`translate(${f.roomX}px,${f.roomY}px) scale(${f.roomScale})`);const bg=studioImageFrame(width,height,f.initialWidth,f.initialHeight,f.startY);v.style.setProperty('--studio-bg-w',`${bg.width}px`);v.style.setProperty('--studio-bg-h',`${bg.height}px`);v.style.setProperty('--studio-bg-x',`${bg.x}px`);v.style.setProperty('--studio-bg-y',`${bg.y}px`);v.style.setProperty('--studio-phone-bottom',`${f.startY+f.initialHeight}px`);v.style.setProperty('--desk-y',`${Math.min(height-22,f.startY+f.initialHeight+23)}px`);v.style.setProperty('--monitor-width',`${f.initialWidth}px`);
-   d.style.setProperty('--logical-w',`${width}px`);d.style.setProperty('--logical-h',`${height}px`);d.style.setProperty('--screen-sx',`${Math.max(1,f.width-2*f.bezel)/width}`);d.style.setProperty('--screen-sy',`${Math.max(1,f.height-2*f.bezel)/height}`);
-   d.style.setProperty('--device-w',`${f.width}px`);d.style.setProperty('--device-h',`${f.height}px`);d.style.setProperty('--device-x',`${f.x}px`);d.style.setProperty('--device-y',`${f.y}px`);d.style.setProperty('--device-radius',`${f.radius}px`);d.style.setProperty('--bezel',`${f.bezel}px`);d.style.setProperty('--stand',`${f.fade}`);v.style.setProperty('--intro-opacity',`${f.fade}`);v.style.setProperty('--intro-shift',`${f.shift}px`);v.style.setProperty('--progress',`${p*100}%`);
-   const now=f.ready;if(now!==lastReady||entered.current!==now){lastReady=now;entered.current=now;setReady(now);}if(f.introVisible!==lastIntro){lastIntro=f.introVisible;setIntroVisible(f.introVisible);}
-
-  };
-  const queue=()=>{if(!frame)frame=requestAnimationFrame(draw)};const ro=new ResizeObserver(queue);ro.observe(v);if(introRef.current)ro.observe(introRef.current);const nav=document.querySelector('header.nav');if(nav)ro.observe(nav);window.addEventListener('scroll',queue,{passive:true});window.addEventListener('resize',queue);
-  v.addEventListener('pointermove',pointerMove,{passive:true});v.addEventListener('pointerleave',resetPointer);window.addEventListener('blur',resetPointer);fine.addEventListener('change',motionChanged);
-  draw();return()=>{if(frame)cancelAnimationFrame(frame);if(cameraFrame)cancelAnimationFrame(cameraFrame);ro.disconnect();window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);v.removeEventListener('pointermove',pointerMove);v.removeEventListener('pointerleave',resetPointer);window.removeEventListener('blur',resetPointer);fine.removeEventListener('change',motionChanged);
-   for(const key of ['--camera-x','--camera-y','--camera-scale','--camera-tilt-x','--camera-tilt-y','--camera-perspective','--camera-strength','--foreground-x','--foreground-y','--sign-x','--sign-y','--camera-light-x','--camera-light-y','--camera-light-opacity'])v.style.removeProperty(key);
+  const queue=()=>{if(!frame&&!disposed)frame=requestAnimationFrame(draw)};
+  const move=(e:PointerEvent)=>{if(e.pointerType!=='mouse'||!fine.matches||reduced||entered.current)return;const r=v.getBoundingClientRect();if(!r.width||!r.height)return;targetX=clamp(2*(e.clientX-r.left)/r.width-1,-1,1);targetY=clamp(2*(e.clientY-r.top)/r.height-1,-1,1);queue();};
+  const reset=()=>{targetX=targetY=0;queue();};
+  const ro=new ResizeObserver(queue);ro.observe(v);if(introRef.current)ro.observe(introRef.current);
+  const nav=document.querySelector('header.nav');if(nav)ro.observe(nav);
+  window.addEventListener('scroll',queue,{passive:true});window.addEventListener('resize',queue);window.addEventListener('blur',reset);
+  v.addEventListener('pointermove',move,{passive:true});v.addEventListener('pointerleave',reset);
+  fine.addEventListener('change',reset);document.addEventListener('visibilitychange',queue);
+  if(host&&!reduced)import('./studio3d').then(mod=>{
+   if(disposed||failed)return;
+   try{engine=mod.createStudio(host,()=>{if(!disposed){fallback();queue();}});queue();}catch{fallback();queue();}
+  }).catch(()=>{if(!disposed){fallback();queue();}});
+  queue();
+  return()=>{disposed=true;if(frame)cancelAnimationFrame(frame);engine?.dispose();ro.disconnect();
+   window.removeEventListener('scroll',queue);window.removeEventListener('resize',queue);window.removeEventListener('blur',reset);
+   v.removeEventListener('pointermove',move);v.removeEventListener('pointerleave',reset);fine.removeEventListener('change',reset);document.removeEventListener('visibilitychange',queue);
+   delete v.dataset.studio3d;v.style.removeProperty('--screen-projection');
   };
  },[classic,reduced]);
  useLayoutEffect(()=>{if(!classic&&ready&&focusApp.current&&body.current){body.current.scrollTop=0;body.current.focus({preventScroll:true});focusApp.current=false}},[active,classic,ready]);
